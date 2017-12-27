@@ -1,0 +1,290 @@
+---
+title: "Data Science Specialization SwiftKey Capstone-Milestone Report"
+author: "Vasuprad Kanade"
+date: "December 25, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set
+##published on http://rpubs.com/VasupradKanade/344402 or http://rpubs.com/VasupradKanade/Capstone-Milestone-Report
+
+library(tm) # framework for text mining
+library(SnowballC) # provides wordStem() for stemming
+library(RColorBrewer) # generate palette of colours for plots
+library(ggplot2) # plot word frequencies
+library(scales) # format axis scales for plots
+library(tidyr) # assists in cleaning & preparing data
+library(dplyr) # assists in data manipulation, transformation, & summarization
+library(RWeka)
+library(stringr)
+library(stringi)
+
+setwd("~/Vasuprad/Accenture/Official/Trainings/Coursera/Data Science/Assignments/Course 10-Capstone/Project")
+
+```
+
+## Executive Summary
+
+This milestone report for the Data Science Capstone project presents basic exploratory analysis of the large text corpus of documents and texts from blogs, news and twitter. The course objective is to apply data science in the area of natural language processing. The final outcome of the course is to construct a Shiny application that predicts the next word accepting some text inputs by the user using natural language processing based prediction algorithm.
+
+## Data
+The data provided in the course site comprises four sets of files (de_DE - Danish, en_US - English,fi_FI - Finnish an ru_RU - Russian), with each set containing 3 text files with texts from blogs, news/media sites and twitter. In this analysis we will focus english (en_US) set of files: . en_US.blogs.txt . en_US.news.txt . en_US.twitter.txt
+
+## Loading the Data
+Download the [data provided](https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip) and import the datasets in binary mode
+```{r data_loading, include=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+
+conUSBlogs <- file("./Coursera-SwiftKey/final/en_US/en_US.blogs.txt", open="rb")
+blogs <- readLines(conUSBlogs, encoding="UTF-8")
+close(conUSBlogs)
+rm(conUSBlogs)
+
+conUSNews <- file("./Coursera-SwiftKey/final/en_US/en_US.news.txt", open="rb")
+news <- readLines(conUSNews, encoding="UTF-8")
+close(conUSNews)
+rm(conUSNews)
+
+conTwitter <- file("./Coursera-SwiftKey/final/en_US/en_US.twitter.txt", open="rb")
+twitter <- readLines(conTwitter, encoding="UTF-8")
+close(conTwitter)
+rm(conTwitter)
+```
+
+
+## Basic Summary of Data
+
+```{r basic_summary, echo=FALSE, message=TRUE, warning=FALSE}
+file.info("Coursera-SwiftKey/final/en_US/en_US.blogs.txt")
+blogs %>% length()
+
+file.info("Coursera-SwiftKey/final/en_US/en_US.news.txt")
+news %>% length()
+
+file.info("Coursera-SwiftKey/final/en_US/en_US.twitter.txt")
+twitter %>% length()
+
+```
+The blogs file is 248.5MB in size containing 8,99,288 lines or entries; the news file is 249.6MB in size containing 1,010,242 entries; the twitter file is 301.4MB in size containing 2,360,148 entries.
+
+## Analyzing the Raw Data
+```{r clean_raw_data, echo=FALSE, message=FALSE, warning=FALSE}
+##Basic cleansing of data - remove the non-UTF characters
+# drop non UTF-8 characters - Blogs
+blogs <- iconv(blogs, from = "latin1", to = "UTF-8", sub="")
+blogs <- stri_replace_all_regex(blogs, "\u2019|`","'")
+blogs <- stri_replace_all_regex(blogs, "\u201c|\u201d|u201f|``",'"')
+
+# drop non UTF-8 characters - News
+news <- iconv(news, from = "latin1", to = "UTF-8", sub="")
+news <- stri_replace_all_regex(news, "\u2019|`","'")
+news <- stri_replace_all_regex(news, "\u201c|\u201d|u201f|``",'"')
+
+# drop non UTF-8 characters - Twitter
+twitter <- iconv(twitter, from = "latin1", to = "UTF-8", sub="")
+twitter <- stri_replace_all_regex(twitter, "\u2019|`","'")
+twitter <- stri_replace_all_regex(twitter, "\u201c|\u201d|u201f|``",'"')
+
+```
+
+### No. of Lines Per Data Set
+```{r lines_per_text, echo=FALSE, message=FALSE, warning=FALSE}
+lines_files <- data.frame(files=c("blogs","twitter","news"),
+                          lines=c(length(blogs),length(twitter),length(news)))
+ggplot(data=lines_files,aes(x=files,y=lines,fill=files)) + 
+        geom_bar(stat="identity") +
+        xlab("Data Corpus Catagory") + 
+        ylab("Number of lines") +
+        ggtitle("Number of Lines per Data Corpus Catagory")
+
+```
+
+### Summary of Size of Line per Data Set
+```{r plot_line_Size, echo=FALSE, message=FALSE, warning=FALSE}
+line_stats <- data.frame(files=c(rep("blogs",length(blogs)),
+                                 rep("twitter",length(twitter)),
+                                 rep("news",length(news))),
+                           linelen=c(sapply(blogs,str_length,USE.NAMES=FALSE),
+                                    sapply(twitter,str_length,USE.NAMES=FALSE),
+                                    sapply(news,str_length,USE.NAMES=FALSE)))
+boxplot(log(linelen)~files,data=line_stats,
+        main="Statistics of line length per file",
+        xlab="Files",
+        ylab="Size of Line")
+```
+
+### No. of Words by Line per Data Set
+```{r plot_word_Size, echo=FALSE, message=FALSE, warning=FALSE}
+word_stats <- data.frame(files=c(rep("blogs",length(blogs)),
+                                 rep("twitter",length(twitter)),
+                                 rep("news",length(news))),
+                         wordcount=c(str_count(blogs,"\\w+"),
+                                   str_count(twitter,"\\w+"),
+                                   str_count(news,"\\w+")))
+boxplot(log(wordcount)~files,data=word_stats,
+        main="Statistics of number of words per text in file",
+        xlab="Files",
+        ylab="Number of Words")
+
+#       overall summary of words per text in file
+#summary(word_stats$wordcount)
+
+#       summary of words per text in file blogsUS
+#summary(word_stats[word_stats$file=="blogs","wordcount"])
+
+#       summary of words per text in file twitterUS
+#summary(word_stats[word_stats$file=="twitter","wordcount"])
+
+#       summary of words per text in file newsUS
+#summary(word_stats[word_stats$file=="news","wordcount"])
+
+
+#total <- sum(word_stats$wordcount)
+
+```
+
+## Analyzing Words in the Data Sets
+The 3 data sets together have 4,269,768 words, and the dataset sizes is too large to acommodate in memory. So in order the prediction algorithm  performs well and fits in the memory available to the Shiny server, first I will do some transformation and cleansing in the data, then take a sample of the  datasets. To determine the sample size we will plot the frequency of words and consider the words above 99% quantile.
+
+### Data Cleansing
+
+The raw data is cleansed by removing punctuation, whitespaces and numbers. The sentences are tokenize to get the summary of words and determine frequencies of occurances.
+
+```{r data_cleansing, echo=FALSE, message=FALSE, warning=FALSE}
+cleanData <- function(data) {
+  data <- tolower(data) # convert to lowercase
+  data <- removeNumbers(data) # remove numbers
+  data <- removePunctuation(data) # remove all other punctuation
+  data <- stripWhitespace(data) # remove excess white space
+}
+
+savedFile <- "./WordPrediction/data/en_US.Blogs-Clean.RData"
+if (!file.exists(savedFile)) {
+  blogs <- cleanData(blogs)
+  saveRDS(blogs,savedFile, ascii = FALSE, version = NULL, compress = TRUE, refhook = NULL)
+}
+
+savedFile <- "./WordPrediction/data/en_US.News-Clean.RData"
+if (!file.exists(savedFile)) {
+  news <- cleanData(news)
+  saveRDS(news,savedFile, ascii = FALSE, version = NULL, compress = TRUE, refhook = NULL)
+}
+
+savedFile <- "./WordPrediction/data/en_US.Twitter-Clean.RData"
+if (!file.exists(savedFile)){
+  twitter <- cleanData(twitter)
+  saveRDS(twitter,savedFile, ascii = FALSE, version = NULL, compress = TRUE, refhook = NULL)
+}
+
+blogs <- unlist(str_split(blogs,"\\W+"))
+news <- unlist(str_split(news,"\\W+"))
+twitter <- unlist(str_split(twitter,"\\W+"))
+
+words.blogs <- sort(table(blogs),decreasing=TRUE) # table with blogsUS word freq
+words.news <- sort(table(news),decreasing=TRUE) # table with newsUS word freq
+words.twitter <- sort(table(twitter),decreasing=TRUE) # table with twitterUS word freq
+words.all <- sort(table(c(blogs,news,twitter)),decreasing=TRUE) # all word freq
+
+q.blogs <- quantile(words.blogs,probs=c(0,25,50,75,80,95,99,100)/100,type=3)
+q.news <- quantile(words.news,probs=c(0,25,50,75,80,95,99,100)/100,type=3)
+q.twitter <- quantile(words.twitter,probs=c(0,25,50,75,80,95,99,100)/100,type=3)
+q.all <- quantile(words.all,probs=c(0,25,50,75,80,95,99,100)/100,type=3)
+
+print(q.blogs)
+print(q.news)
+print(q.twitter)
+
+qqnorm(words.blogs,main="Normal Q-Q plot of Words in Blogs", col=2)
+
+qqnorm(words.news,main="Normal Q-Q plot of Words in News", col=3)
+
+qqnorm(words.twitter,main="Normal Q-Q plot of Words in Twitter", col=4)
+
+qqnorm(words.all,main="Normal Q-Q plot of Words in All files", col=5)
+
+words99 <- words.all[words.all>=q.all['99%']] # all word freq above 99% quartile
+
+sum(words99)/sum(words.all)
+
+total.words99 <- length(words99) # total of unique words in all 3 data sets above 99% quantile
+total.words99 
+total.words <- length(words.all) # total of unique words in all 3 data sets
+total.words
+stotal.words99 <- format(total.words99,big.mark=",",small.mark=",",small.interval=3)
+stotal.words <- format(total.words,big.mark=",",small.mark=",",small.interval=3)
+p99 <- total.words99/total.words
+stotal.per <- format(p99,digits=3,big.mark=",",small.mark=",",small.interval=3)                                                        
+```
+
+The words frequencies are skewed to the right, and with a vocabulary of words above the 99% quantile (7,988) we can achieve 88.25731% of words that appears in the text. That is using only 1% of the words we can solve 88% of the text. This reduced number of words cold be the diference of success or failure.
+
+## Word Cloud
+This word cloud depicts the frequency of words used in the twitter messages, excludes punctuations, bad words and common words like and, the, this, etc.
+```{r word_cloud, echo=FALSE, message=FALSE, warning=FALSE}
+library(wordcloud)
+
+###############################################################################################################
+## Load Data
+###############################################################################################################
+## Import text file
+savedFile <- "./WordPrediction/data/en_US.Twitter-Clean.RData"
+if (file.exists(savedFile)){
+  twitter <- readRDS(savedFile)
+} else
+  {
+  conTwitter <- file("./Coursera-SwiftKey/final/en_US/en_US.twitter.txt", open="rb")
+  twitter <- readLines(conTwitter, encoding="UTF-8")
+  close(conTwitter)
+  rm(conTwitter)
+}
+
+## Take a 33% sample of Twitter corpus
+twitter <- sample(twitter, 10000)
+
+# drop non UTF-8 characters
+twitter <- iconv(twitter, from = "latin1", to = "UTF-8", sub="")
+twitter <- stri_replace_all_regex(twitter, "\u2019|`","'")
+twitter <- stri_replace_all_regex(twitter, "\u201c|\u201d|u201f|``",'"')
+
+## Load data as corpus
+vecSource <- VectorSource(twitter)
+docs <- VCorpus(vecSource,readerControl=list(reader=readPlain,language="english",encoding='ANSI'))
+
+##Free up memory
+rm(twitter)
+rm(vecSource)
+
+toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+docs <- tm_map(docs, toSpace, "/")
+docs <- tm_map(docs, toSpace, "@")
+docs <- tm_map(docs, toSpace, "\\|")
+
+## Cleaning the text Remove stop words
+profanity <- readLines("./WordPrediction/data/bad_words.txt")
+docs <- tm_map(docs, removeWords, profanity)
+docs <- tm_map(docs, removeWords, c("and","the","our","that","for","are","also","more","has","must","have","should","this","with"))
+
+###############################################################################################################
+## Build a term-document Matrix
+###############################################################################################################
+dtm <- TermDocumentMatrix(docs)
+m <- as.matrix(dtm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+head(d, 10)
+
+###############################################################################################################
+## Generate the Word cloud
+###############################################################################################################
+set.seed(1234)
+wordcloud(words = d$word, freq = d$freq, scale=c(5,0.5), max.words=100, random.order=FALSE, 
+          min.freq=50, rot.per=0.35, colors=brewer.pal(8, "Dark2"))
+
+```
+
+## Next Steps
+
+1. Build N-Grams (2 to 5) using the words found above 99% quantile
+2. Analyze N-Grams to identify and remove low probability N-Grams
+3. The prediction algorithm will use the trigram model to predict the next word. If no matching trigram can be found, then the algorithm would back off to the bigram model, and then to the unigram model if needed.
+4. Build a simple Shiny application with a text input and three bottons that will change the labels to the predicted words as the user types.
