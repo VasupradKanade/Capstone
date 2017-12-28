@@ -1,0 +1,81 @@
+---
+#title: "Data Science - Capstone Project - Word Prediction"
+#author: "Vasuprad Kanade"
+#date: "December 27, 2017"
+output: revealjs::revealjs_presentation
+#Published on rPubs at: http://rpubs.com/VasupradKanade/Capstone-Project-Presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+## Application to Predict Next Word {data-background=#96A2B6}
+
+<br>
+<br>
+<center>
+<h2><a href="https://github.com/VasupradKanade/Capstone">Capstone Project Presentation</a></h2>
+<br>
+
+<p>Coursera Data Science Specialization</p>
+
+<p><small> <a href="https://github.com/VasupradKanade">Vasuprad Kanade</a> / <a href="https://www.linkedin.com/in/vasuprad">LinkedIn</a> </small></p>
+
+<p>
+<em>&quot;Application for predicting next word&quot;</em>
+</p>
+
+</center>
+
+
+## The Assignment {data-background=#96A2B6}
+
+The word predictor app does the following:
+
+<ol>
+<li><p><strong>The word predictor application</strong> predicts the next word based on the last three words in the sentence.</p></li>
+<li><p>It also suggests three likely words based on word frequencey distribution using corpus data from <a href="https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"><em>Capstone Dataset</em></a></p></li>
+</ol>
+
+<h3>Links to Project App &amp; Docs</h3>
+
+<ol>
+<li><p>Shiny App: <a href="https://vasupradkanade.shinyapps.io/WordPrediction/">Link</a></p></li>
+<li><p><code>server.R</code> and <code>ui.R</code> files: <a href="https://github.com/VasupradKanade/Capstone/tree/master/WordPrediction">Link</a></p></li>
+</ol>
+
+## About the N-Gram Model {data-background=#96A2B6}
+
+- An an _n-gram_ is a contiguous sequence of _n_ items from a given sequence of text or speech
+- An  _n-gram_ model is a type of probabilistic language model for predicting the next item in such a sequence in the form of a (_n_ - 1)-order *Markov model*
+-  _n-gram_ models are now widely used in probability, communication theory, computational linguistics (for instance, statistical natural language processing), and data compression.
+- Two benefits of  _n-gram_ models are simplicity and scalability - with larger _n_, a model can store more context with a well-understood space-time tradeoff
+
+## Application Design {data-background=#96A2B6}
+<small>
+<ol>
+<li>A sample dataset (20% of original corpus dataset) was used for building the prediction engine using R's tm package</li>
+<li>Build N-Grams (2 to 5) using the words found above 99% quantile</li>
+<li>Analyze N-Grams to identify and remove low probability N-Grams</li>
+<li>A lookup datagrams for bigrams, trigrams and quadgrams was build using the TermDocumentMatrix function.</li>
+<li>Datagrams are saved into data files to be used by Shiny App</li>
+<li>Shiny server loads processed datagrams and generates frequency as well as frequency distribution</li>
+<li>The prediction algorithm will use the trigram model to predict the next word. If no matching trigram can be found, then the algorithm would back off to the bigram model, and then to the unigram model if needed</li>
+<li>As user types on the Shiny App user interface, the a prediction algorithms selects three probable words given the weightage for matched grams as follows: 50% for quadrams,30% to trigrams and 20% for bigrams</li>
+<li>Link to the code (<a href="https://github.com/VasupradKanade/Capstone/tree/master/WordPrediction">buildNGrams.R</a>)</li>
+</ol>
+</small>
+
+## How To Use The Application {data-background=#96A2B6}
+<small>
+<ol>
+<li>Load the Shiny App: <a href="https://vasupradkanade.shinyapps.io/WordPrediction/">Link</a></li>
+<li>Allow about 10 seconds for the data to load on the Shiny server</li>
+<li>Input text, at least three words, in the input box</li>
+<li>The blue buttons at the bottom of the inputbox will provide the probale next words, chose any of the words by clicking the blue buttons</li>
+<li>Example, key in words *"the department of "* the next word predicted will be *"public"*", on selecting *"public"* the next word predicted is *"safety"*</li>
+</small>
+</ol>
+[![Click to load the Siny WordPrediction app](WordPredictionShiny.jpg)](https://vasupradkanade.shinyapps.io/WordPrediction/)
